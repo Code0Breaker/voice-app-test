@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Voice Chat",
+    "slug": "voice-chat",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow Voice Chat to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow Voice Chat to use the microphone for speech recognition."
+      },
+      "bundleIdentifier": "com.code0breaker.voice-chat"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Voice Chat to use the microphone for speech recognition.",
+          "speechRecognitionPermission": "Allow Voice Chat to use speech recognition."
+        }
+      ]
+    ]
+  }
+}
