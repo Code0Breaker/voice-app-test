@@ -21,12 +21,14 @@ export function useVoice() {
 
   const intensity = useSharedValue(0);
   const hueShift = useSharedValue(0);
+  const direction = useSharedValue(0);
 
   // --- Speech Recognition Events ---
 
   useSpeechRecognitionEvent('start', () => {
     setVoiceState('listening');
     hueShift.value = withTiming(0, { duration: 400 });
+    direction.value = withTiming(-1, { duration: 400 });
   });
 
   useSpeechRecognitionEvent('end', () => {
@@ -73,6 +75,7 @@ export function useVoice() {
   const startAnsweringAnimation = useCallback(() => {
     cancelAnimation(intensity);
     hueShift.value = withTiming(0.6, { duration: 600 });
+    direction.value = withTiming(1, { duration: 600 });
     intensity.value = withRepeat(
       withSequence(
         withTiming(0.8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
@@ -81,7 +84,7 @@ export function useVoice() {
       -1,
       true,
     );
-  }, [intensity, hueShift]);
+  }, [intensity, hueShift, direction]);
 
   const resetToIdle = useCallback(() => {
     setVoiceState('idle');
@@ -89,9 +92,11 @@ export function useVoice() {
     transcriptRef.current = '';
     cancelAnimation(intensity);
     cancelAnimation(hueShift);
+    cancelAnimation(direction);
     intensity.value = withTiming(0, { duration: 400 });
     hueShift.value = withTiming(0, { duration: 400 });
-  }, [intensity, hueShift]);
+    direction.value = withTiming(0, { duration: 400 });
+  }, [intensity, hueShift, direction]);
 
   // --- Public API ---
 
@@ -130,17 +135,38 @@ export function useVoice() {
     startAnsweringAnimation();
   }, [startAnsweringAnimation]);
 
+  /** Reset animations then immediately restart speech recognition for the next turn */
+  const restartListening = useCallback(() => {
+    setTranscript('');
+    transcriptRef.current = '';
+    cancelAnimation(intensity);
+    cancelAnimation(hueShift);
+    cancelAnimation(direction);
+    intensity.value = withTiming(0, { duration: 300 });
+    hueShift.value = withTiming(0, { duration: 300 });
+    direction.value = withTiming(0, { duration: 300 });
+    ExpoSpeechRecognitionModule.start({
+      lang: 'en-US',
+      interimResults: true,
+      continuous: false,
+      volumeChangeEventOptions: {
+        enabled: true,
+        intervalMillis: 100,
+      },
+    });
+  }, [intensity, hueShift, direction]);
+
   /** Call when AI response is fully received – speak it via TTS */
   const speakResponse = useCallback(
     (text: string) => {
       Speech.speak(text, {
         language: 'en-US',
         rate: 1.0,
-        onDone: () => resetToIdle(),
+        onDone: () => restartListening(),
         onStopped: () => resetToIdle(),
       });
     },
-    [resetToIdle],
+    [restartListening, resetToIdle],
   );
 
   /** Consume the current transcript and clear it */
@@ -156,6 +182,7 @@ export function useVoice() {
     transcript,
     intensity,
     hueShift,
+    direction,
     startListening,
     stopListening,
     cancel,

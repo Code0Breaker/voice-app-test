@@ -16,12 +16,14 @@ import {
  *   iTime        – seconds (subtle organic motion)
  *   iIntensity   – 0..1 brightness & vertical spread
  *   iHueShift    – 0..1 palette shift (gold → pink/violet)
+ *   iDirection   – -1 upward (user speaking), 0 neutral, +1 downward (AI answering)
  */
 const source = Skia.RuntimeEffect.Make(`
 uniform float2 iResolution;
 uniform float  iTime;
 uniform float  iIntensity;
 uniform float  iHueShift;
+uniform float  iDirection;
 
 float hash(float2 p) {
   return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
@@ -69,8 +71,9 @@ half4 main(float2 fragCoord) {
   float centerY = 0.48;
 
   float t  = iTime * 0.15;
-  float n  = fbm(float2(uv.x * 3.0 + t, uv.y * 1.5 - t * 0.5));
-  float n2 = fbm(float2(uv.x * 5.0 - t * 0.7, uv.y * 2.0 + t * 0.3));
+  float dirFlow = iDirection * t * 0.8;
+  float n  = fbm(float2(uv.x * 3.0 + t, uv.y * 1.5 + dirFlow));
+  float n2 = fbm(float2(uv.x * 5.0 - t * 0.7, uv.y * 2.0 - dirFlow * 0.6));
 
   float dy = abs(uv.y - centerY + (n - 0.5) * 0.06 * iIntensity);
 
@@ -100,6 +103,8 @@ interface AuroraVisualizerProps {
   intensity: SharedValue<number>;
   /** 0-1 palette shift from gold → violet */
   hueShift: SharedValue<number>;
+  /** -1 upward (user speaking), 0 neutral, +1 downward (AI answering) */
+  direction: SharedValue<number>;
 }
 
 export function AuroraVisualizer({
@@ -107,6 +112,7 @@ export function AuroraVisualizer({
   height,
   intensity,
   hueShift,
+  direction,
 }: AuroraVisualizerProps) {
   const time = useSharedValue(0);
 
@@ -119,6 +125,7 @@ export function AuroraVisualizer({
     iTime: time.value,
     iIntensity: intensity.value,
     iHueShift: hueShift.value,
+    iDirection: direction.value,
   }));
 
   return (

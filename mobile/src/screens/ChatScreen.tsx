@@ -40,6 +40,7 @@ export function ChatScreen() {
     transcript,
     intensity,
     hueShift,
+    direction,
     startListening,
     cancel,
     onAnswerStart,
@@ -197,6 +198,7 @@ export function ChatScreen() {
           height={isFullscreen ? SCREEN_H : AURORA_INLINE_H}
           intensity={intensity}
           hueShift={hueShift}
+          direction={direction}
         />
       </Animated.View>
 
