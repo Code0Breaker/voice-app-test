@@ -16,7 +16,7 @@ import Animated, {
   SlideOutDown,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AuroraVisualizer } from '../components/AuroraVisualizer';
+import { WaveVisualizer } from '../components/WaveVisualizer';
 import { VoiceControls } from '../components/VoiceControls';
 import { MessageBubble } from '../components/MessageBubble';
 import { ChatInput } from '../components/ChatInput';
@@ -26,7 +26,7 @@ import { useVoice } from '../hooks/useVoice';
 import type { ChatMessage } from '../types';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const AURORA_INLINE_H = SCREEN_H * 0.32;
+const WAVE_INLINE_H = SCREEN_H * 0.28;
 
 export function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -34,7 +34,7 @@ export function ChatScreen() {
   const [isMuted, setIsMuted] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
-  const { messages, isStreaming, sendMessage } = useChat();
+  const { messages, isStreaming, sendMessage, cancelStream } = useChat();
   const {
     voiceState,
     transcript,
@@ -46,6 +46,7 @@ export function ChatScreen() {
     onAnswerStart,
     speakResponse,
     consumeTranscript,
+    interruptTTS,
   } = useVoice();
 
   // --- Text input send ---
@@ -70,6 +71,12 @@ export function ChatScreen() {
     cancel();
     setMode('chat');
   }, [cancel]);
+
+  // --- Interrupt: stop stream + TTS, go to monitoring ---
+  const handleInterrupt = useCallback(() => {
+    cancelStream();
+    interruptTTS();
+  }, [cancelStream, interruptTTS]);
 
   // --- Mute toggle ---
   const handleMuteToggle = useCallback(() => {
@@ -171,6 +178,10 @@ export function ChatScreen() {
 
         {voiceState === 'listening' ? (
           <TranscriptionOverlay text={transcript} />
+        ) : voiceState === 'monitoring' ? (
+          <View style={styles.monitoringHint}>
+            <Text style={styles.monitoringText}>Listening for your voice…</Text>
+          </View>
         ) : hasMessages ? (
           <FlatList
             ref={flatListRef}
@@ -183,23 +194,31 @@ export function ChatScreen() {
         ) : null}
       </View>
 
-      {/* Aurora section */}
+      {/* Wave section */}
       <Animated.View
         entering={SlideInDown.duration(400)}
         exiting={SlideOutDown.duration(300)}
         style={
           isFullscreen
-            ? styles.auroraFullscreen
-            : styles.auroraInline
+            ? styles.waveFullscreen
+            : styles.waveInline
         }
       >
-        <AuroraVisualizer
+        <WaveVisualizer
           width={SCREEN_W}
-          height={isFullscreen ? SCREEN_H : AURORA_INLINE_H}
+          height={isFullscreen ? SCREEN_H : WAVE_INLINE_H}
           intensity={intensity}
           hueShift={hueShift}
           direction={direction}
         />
+        {/* Transparent overlay to capture taps (Skia Canvas swallows touches) */}
+        {voiceState === 'answering' && (
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={handleInterrupt}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
       </Animated.View>
 
       {/* Voice controls pill */}
@@ -267,12 +286,24 @@ const styles = StyleSheet.create({
     flex: 1,
     zIndex: 2,
   },
-  auroraInline: {
-    height: AURORA_INLINE_H,
+  waveInline: {
+    height: WAVE_INLINE_H,
     overflow: 'hidden',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
-  auroraFullscreen: {
+  waveFullscreen: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
+  },
+  monitoringHint: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monitoringText: {
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#999',
   },
 });

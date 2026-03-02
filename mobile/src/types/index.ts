@@ -1,4 +1,4 @@
-export type VoiceState = 'idle' | 'listening' | 'thinking' | 'answering';
+export type VoiceState = 'idle' | 'monitoring' | 'listening' | 'thinking' | 'answering';
 
 export interface ChatMessage {
   id: string;

@@ -100,6 +100,14 @@ export function useChat() {
     [conversationId],
   );
 
+  const cancelStream = useCallback(() => {
+    onFirstChunkRef.current = null;
+    onDoneRef.current = null;
+    streamBufferRef.current = '';
+    currentMsgIdRef.current = null;
+    setIsStreaming(false);
+  }, []);
+
   const clearMessages = useCallback(() => {
     setMessages([]);
     setConversationId(null);
@@ -110,6 +118,7 @@ export function useChat() {
     isStreaming,
     conversationId,
     sendMessage,
+    cancelStream,
     clearMessages,
   };
 }
