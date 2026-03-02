@@ -1,4 +1,27 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["ollama", "pull", "gemma2:2b"]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: "no"
+
   backend:
     build: .
     ports:
@@ -6,8 +29,12 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - OLLAMA_MODEL=llama3.1:8b-instruct-q4_K_M
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=gemma2:2b
+    depends_on:
+      ollama:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  ollama_data:

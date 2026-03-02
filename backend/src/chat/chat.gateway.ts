@@ -49,10 +49,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const history = await this.chatService.getConversationMessages(
         conversation.id,
       );
-      const ollamaMessages = history.map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }));
+      const ollamaMessages = [
+        {
+          role: 'system' as const,
+          content:
+            'You are a helpful voice assistant. Keep responses brief and conversational – ideally 1-3 sentences unless the user asks for detail.',
+        },
+        ...history.map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+      ];
 
       const assistantMsg = await this.chatService.addMessage(
         conversation.id,

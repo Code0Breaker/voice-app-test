@@ -13,7 +13,7 @@ export class OllamaService {
   constructor() {
     this.baseUrl =
       process.env.OLLAMA_HOST || 'http://localhost:11434';
-    this.model = process.env.OLLAMA_MODEL || 'llama3.1:8b-instruct-q4_K_M';
+    this.model = process.env.OLLAMA_MODEL || 'gemma2:2b';
   }
 
   async *streamChat(
