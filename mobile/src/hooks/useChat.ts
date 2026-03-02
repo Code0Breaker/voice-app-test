@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { ChatMessage, ChunkPayload } from '../types';
-
-const SERVER_URL = __DEV__
-  ? 'http://localhost:3000'
-  : 'http://localhost:3000';
+import type { ChatMessage, ChunkPayload, SendMessageOptions } from '../types';
+import { SERVER_URL } from '../config';
 
 export function useChat() {
   const socketRef = useRef<Socket | null>(null);
@@ -26,7 +23,6 @@ export function useChat() {
     socket.on('chunk', (payload: ChunkPayload) => {
       if (!payload.done) {
         if (!currentMsgIdRef.current) {
-          // First chunk of a new response
           currentMsgIdRef.current = payload.messageId;
           setConversationId(payload.conversationId);
           onFirstChunkRef.current?.();
@@ -70,13 +66,7 @@ export function useChat() {
   }, []);
 
   const sendMessage = useCallback(
-    (
-      text: string,
-      opts?: {
-        onFirstChunk?: () => void;
-        onDone?: (fullText: string) => void;
-      },
-    ) => {
+    (text: string, opts?: SendMessageOptions) => {
       if (!text.trim() || !socketRef.current) return;
 
       onFirstChunkRef.current = opts?.onFirstChunk ?? null;

@@ -3,8 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  StyleSheet,
-  TouchableOpacity,
   Dimensions,
   KeyboardAvoidingView,
   Platform,
@@ -16,17 +14,14 @@ import Animated, {
   SlideOutDown,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WaveVisualizer } from '../components/WaveVisualizer';
-import { VoiceControls } from '../components/VoiceControls';
-import { MessageBubble } from '../components/MessageBubble';
-import { ChatInput } from '../components/ChatInput';
-import { TranscriptionOverlay } from '../components/TranscriptionOverlay';
-import { useChat } from '../hooks/useChat';
-import { useVoice } from '../hooks/useVoice';
 import type { ChatMessage } from '../types';
+import { useChat, useVoice } from '../hooks';
+import { Header } from '../components/common';
+import { ChatInput, MessageList } from '../components/chat';
+import { WaveVisualizer, VoiceControls, TranscriptionOverlay } from '../components/voice';
+import { styles, WAVE_INLINE_H } from './ChatScreen.styles';
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const WAVE_INLINE_H = SCREEN_H * 0.28;
+const { width: SCREEN_W } = Dimensions.get('window');
 
 export function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -34,7 +29,7 @@ export function ChatScreen() {
   const [isMuted, setIsMuted] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
-  const { messages, isStreaming, sendMessage, cancelStream } = useChat();
+  const { messages, isStreaming, sendMessage } = useChat();
   const {
     voiceState,
     transcript,
@@ -46,10 +41,8 @@ export function ChatScreen() {
     onAnswerStart,
     speakResponse,
     consumeTranscript,
-    interruptTTS,
   } = useVoice();
 
-  // --- Text input send ---
   const handleTextSend = useCallback(
     (text: string) => {
       sendMessage(text);
@@ -60,30 +53,20 @@ export function ChatScreen() {
     [sendMessage],
   );
 
-  // --- Mic button: enter voice mode + start listening ---
   const handleMicPress = useCallback(async () => {
     setMode('voice');
     await startListening();
   }, [startListening]);
 
-  // --- Close voice mode ---
   const handleVoiceClose = useCallback(() => {
     cancel();
     setMode('chat');
   }, [cancel]);
 
-  // --- Interrupt: stop stream + TTS, go to monitoring ---
-  const handleInterrupt = useCallback(() => {
-    cancelStream();
-    interruptTTS();
-  }, [cancelStream, interruptTTS]);
-
-  // --- Mute toggle ---
   const handleMuteToggle = useCallback(() => {
     setIsMuted((prev) => !prev);
   }, []);
 
-  // When STT ends and voiceState becomes "thinking", send the transcript
   React.useEffect(() => {
     if (voiceState === 'thinking') {
       const text = consumeTranscript();
@@ -96,7 +79,6 @@ export function ChatScreen() {
     }
   }, [voiceState, consumeTranscript, sendMessage, onAnswerStart, speakResponse]);
 
-  // Scroll to bottom when new messages arrive
   React.useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
@@ -105,9 +87,6 @@ export function ChatScreen() {
     }
   }, [messages]);
 
-  const hasMessages = messages.length > 0;
-
-  // --- CHAT MODE ---
   if (mode === 'chat') {
     return (
       <KeyboardAvoidingView
@@ -115,34 +94,8 @@ export function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.headerBtn}>
-              <Text style={styles.headerIcon}>☰</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerBtn}>
-              <Text style={styles.headerIcon}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Content */}
-          {!hasMessages ? (
-            <View style={styles.greeting}>
-              <Text style={styles.greetTitle}>Good morning</Text>
-              <Text style={styles.greetSub}>How can I help?</Text>
-            </View>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              keyExtractor={(m) => m.id}
-              renderItem={({ item }) => <MessageBubble message={item} />}
-              contentContainerStyle={styles.messageList}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-
-          {/* Input bar */}
+          <Header />
+          <MessageList messages={messages} listRef={flatListRef} />
           <View style={{ paddingBottom: insets.bottom }}>
             <ChatInput
               onSubmit={handleTextSend}
@@ -155,26 +108,14 @@ export function ChatScreen() {
     );
   }
 
-  // --- VOICE MODE ---
-  const isFullscreen = voiceState === 'listening' && !hasMessages;
-
   return (
     <Animated.View
       entering={FadeIn.duration(300)}
       exiting={FadeOut.duration(200)}
       style={[styles.voiceRoot, { paddingTop: insets.top }]}
     >
-      {/* Top section: transcription or messages */}
       <View style={styles.voiceTopSection}>
-        {/* Header in voice mode */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerBtn}>
-            <Text style={styles.headerIcon}>☰</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn} onPress={handleVoiceClose}>
-            <Text style={styles.headerIcon}>✕</Text>
-          </TouchableOpacity>
-        </View>
+        <Header onClosePress={handleVoiceClose} />
 
         {voiceState === 'listening' ? (
           <TranscriptionOverlay text={transcript} />
@@ -182,46 +123,25 @@ export function ChatScreen() {
           <View style={styles.monitoringHint}>
             <Text style={styles.monitoringText}>Listening for your voice…</Text>
           </View>
-        ) : hasMessages ? (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(m) => m.id}
-            renderItem={({ item }) => <MessageBubble message={item} />}
-            contentContainerStyle={styles.messageList}
-            showsVerticalScrollIndicator={false}
-          />
+        ) : messages.length > 0 ? (
+          <MessageList messages={messages} listRef={flatListRef} />
         ) : null}
       </View>
 
-      {/* Wave section */}
       <Animated.View
         entering={SlideInDown.duration(400)}
         exiting={SlideOutDown.duration(300)}
-        style={
-          isFullscreen
-            ? styles.waveFullscreen
-            : styles.waveInline
-        }
+        style={styles.waveInline}
       >
         <WaveVisualizer
           width={SCREEN_W}
-          height={isFullscreen ? SCREEN_H : WAVE_INLINE_H}
+          height={WAVE_INLINE_H}
           intensity={intensity}
           hueShift={hueShift}
           direction={direction}
         />
-        {/* Transparent overlay to capture taps (Skia Canvas swallows touches) */}
-        {voiceState === 'answering' && (
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={handleInterrupt}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
       </Animated.View>
 
-      {/* Voice controls pill */}
       <VoiceControls
         onClose={handleVoiceClose}
         onMuteToggle={handleMuteToggle}
@@ -230,80 +150,3 @@ export function ChatScreen() {
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 52,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerIcon: {
-    fontSize: 22,
-    color: '#1A1A1A',
-  },
-  greeting: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  greetTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  greetSub: {
-    fontSize: 28,
-    fontWeight: '300',
-    color: '#1A1A1A',
-  },
-  messageList: {
-    paddingVertical: 8,
-    flexGrow: 1,
-  },
-  // Voice mode
-  voiceRoot: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  voiceTopSection: {
-    flex: 1,
-    zIndex: 2,
-  },
-  waveInline: {
-    height: WAVE_INLINE_H,
-    overflow: 'hidden',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  waveFullscreen: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  monitoringHint: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  monitoringText: {
-    fontSize: 17,
-    fontWeight: '400',
-    color: '#999',
-  },
-});
